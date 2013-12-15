@@ -5,11 +5,25 @@ use warnings;
 
 sub register_column {
     my $self = shift;
-    my ($column, $info, $args) = @_;
     $self->next::method(@_);
+    $self->__serializer_inflate_column(@_);
+};
+
+sub set_serialize_column {
+    my $self = shift;
+    my ($column, $serializer_class, $args) = @_;
+
+    my $info = $self->column_info($column);
+    $info->{serializer_class} = $serializer_class;
+
+    $self->__serializer_inflate_column($column, $info, $args);
+}
+
+sub __serializer_inflate_column {
+    my $self = shift;
+    my ($column, $info, $args) = @_;
 
     return unless defined $info->{'serializer_class'};
-
 
     my $class = "DBIx::Class::InflateColumn::Serializer::$info->{'serializer_class'}";
     eval "require ${class};";
@@ -26,7 +40,7 @@ sub register_column {
             deflate => $freezer,
         }
     );
-};
+}
 
 =head1 NAME
 
@@ -42,7 +56,7 @@ DBIx::Class::InflateColumn::Serializer - Inflators to serialize data structures 
     'data_column' => {
       'data_type' => 'VARCHAR',
       'size'      => 255,
-      'serializer_class'   => 'JSON' 
+      'serializer_class'   => 'JSON'
     }
   );
 
@@ -80,6 +94,13 @@ Right now there are three serializers:
 
 3. add 'serializer_class' => SERIALIZER to the properties of the column that you want to (de/i)nflate
    with the SERIALIZER class.
+
+=head1 Working with DBIx::Class::Schema::Loader
+
+Sometimes you use L<DBIx::Class::Schema::Loader> that you can't change the add_columns part. in that case, you can add below code after md5sum
+
+__PACKAGE__->load_components('InflateColumn::Serializer');
+__PACKAGE__->set_serialize_column('data_column', 'JSON'); # $column_name, $serializer_class
 
 =head1 NOTES
 
